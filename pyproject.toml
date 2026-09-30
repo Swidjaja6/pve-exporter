@@ -1,0 +1,20 @@
+[project]
+name = "pve-exporter"
+version = "0.1.0"
+description = "Prometheus exporter for Proxmox VE"
+readme = "README.md"
+authors = [
+    { name = "Swidjaja6" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "prometheus-client>=0.26.0",
+]
+
+[project.scripts]
+pve-exporter = "pve_exporter.main:main"
+
+[build-system]
+requires = ["uv_build>=0.12.20,<0.13.0"]
+build-backend = "uv_build"
