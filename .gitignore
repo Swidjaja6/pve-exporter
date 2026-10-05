@@ -9,3 +9,4 @@ wheels/
 # Environments
 .venv
 .env
+.vibe-wise

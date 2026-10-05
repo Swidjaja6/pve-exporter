@@ -16,7 +16,8 @@ class PveClient:
         resp = self._http.get(path, params=params)
         resp.raise_for_status()
         return resp.json()["data"]
-
-    # Gets all guest VMs in the cluster
-    def guests(self) -> list[dict]:
-        return self._get("/cluster/resources", type="vm")
+    
+    # Gets all resources in the cluster
+    def resources(self) -> list[dict]:
+            return self._get("/cluster/resources")
+    
