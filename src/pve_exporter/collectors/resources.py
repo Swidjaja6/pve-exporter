@@ -44,18 +44,19 @@ class ResourceCollector:
         )
         try:
             resources = self.client.resources()
-        except httpx.HTTPStatusError as e:
-            log.error("HTTP status error occurred: %s", e)
-            success.add_metric([], 0)
-            yield success
-            return
-        except httpx.ConnectError as e:
-            log.error("Connection error occurred: %s", e)
-            success.add_metric([], 0)
-            yield success
-            return
+            if not isinstance(resources, list):
+                raise ValueError("Expected a list of resources")
         except httpx.HTTPError as e:
-            log.error("HTTP error occurred: %s", e)
+            error_type = type(e).__name__.replace("Error", " error")
+            log.error("%s occurred: %s", error_type, e)
+            
+            success.add_metric([], 0)
+            yield success
+            return
+        # Come with HTTP 200 Success, but backend response error
+        except (ValueError, KeyError, TypeError) as e:
+            error_type = type(e).__name__.replace("Error", " error")
+            log.error("Proxmox request failed: %s (%s)", error_type, e)
             success.add_metric([], 0)
             yield success
             return
@@ -73,18 +74,19 @@ class ResourceCollector:
         pve_up = GaugeMetricFamily("pve_up", "1 if the resource is up, 0 otherwise", labels=LABELS)
 
         for g in resources:
-            if g["type"] not in UP_STATUS:
+            # Skips if id or node value is empty, also if type is not in UP_STATUS
+            if not isinstance(g, dict) or g.get("type") not in UP_STATUS or not g.get("id") or not g.get("node"):
                 continue
             labels = [g["id"]]
-            pve_up.add_metric(labels, 1.0 if g["status"] == UP_STATUS.get(g["type"], "") else 0.0)
+            pve_up.add_metric(labels, 1.0 if g.get("status", "") == UP_STATUS.get(g["type"], "") else 0.0)
             for field, family in families.items():
                 if field in g:
                     family.add_metric(labels, g[field])
-            if g["type"] == "node":
+            if g.get("type") == "node":
                 families_2["pve_node_info"].add_metric([g["id"], g["node"], g.get("level", "")], 1)
-            elif g["type"] in ("qemu", "lxc"):
+            elif g.get("type") in ("qemu", "lxc"):
                 families_2["pve_guest_info"].add_metric([g["id"], g["node"], g.get("name", ""), g["type"]], 1)
-            elif g["type"] == "storage":
+            elif g.get("type") == "storage":
                 families_2["pve_storage_info"].add_metric([g["id"], g["node"], g.get("storage", ""), g.get("plugintype", ""), g.get("content", "")], 1)
         success.add_metric([], 1)
         yield from (*families.values(), *families_2.values(), pve_up, success)
